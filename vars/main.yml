@@ -16,7 +16,7 @@
 _octavia_is_first_play_host: >-
   {{
     (octavia_services['octavia-api']['group'] in group_names and
-      inventory_hostname == (groups[octavia_services['octavia-api']['group']] | intersect(ansible_play_hosts)) | first) | bool
+      inventory_hostname == (groups[octavia_services['octavia-api']['group']] | select('in', ansible_play_hosts)) | first) | bool
   }}
 
 _octavia_oslomsg_rpc_vhost_conf: >-
@@ -30,6 +30,14 @@ _octavia_oslomsg_notify_vhost_conf: >-
     (octavia_oslomsg_notify_vhost is string) | ternary(
       octavia_oslomsg_notify_vhost, octavia_oslomsg_notify_vhost | selectattr('state', 'eq', 'present') | map(attribute='name') | first)
   }}
+
+_octavia_venv_packages: >-
+  {%- set pkg_list = octavia_pip_packages | union(octavia_user_pip_packages) +
+            (octavia_oslomsg_amqp1_enabled | bool) | ternary(octavia_optional_oslomsg_amqp1_pip_packages, []) %}
+  {%- if octavia_ovn_enabled %}
+  {%-     set _ = pkg_list.extend(octavia_optional_ovn_octavia_provider_pip_packages) %}
+  {%- endif %}
+  {{- pkg_list | unique }}
 
 #
 # Compile a list of the services on a host based on whether

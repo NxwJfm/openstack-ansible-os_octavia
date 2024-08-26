@@ -16,7 +16,7 @@ auth_strategy = {{ octavia_auth_strategy }}
 allow_tls_terminated_listeners = {{ octavia_tls_listener_enabled }}
 
 default_provider_driver = {{ octavia_default_provider_driver }}
-enabled_provider_drivers = {{ octavia_enabled_provider_drivers | join(',') }}
+enabled_provider_drivers = {{ octavia_enabled_provider_drivers | select() | join(',') }}
 
 [oslo_messaging]
 topic = octavia_prov
@@ -24,11 +24,18 @@ topic = octavia_prov
 [oslo_messaging_rabbit]
 ssl = {{ octavia_oslomsg_rpc_use_ssl }}
 rabbit_quorum_queue = {{ octavia_oslomsg_rabbit_quorum_queues }}
+rabbit_transient_quorum_queue = {{ octavia_oslomsg_rabbit_transient_quorum_queues }}
+rabbit_qos_prefetch_count = {{ octavia_oslomsg_rabbit_qos_prefetch_count }}
+use_queue_manager = {{ octavia_oslomsg_rabbit_queue_manager }}
+{% if octavia_oslomsg_rabbit_queue_manager %}
+hostname = {{ [ansible_facts['hostname'], octavia_service_name] | join('-') }}
+{% endif %}
+rabbit_stream_fanout = {{ octavia_oslomsg_rabbit_stream_fanout }}
 rabbit_quorum_delivery_limit = {{ octavia_oslomsg_rabbit_quorum_delivery_limit }}
 rabbit_quorum_max_memory_bytes = {{ octavia_oslomsg_rabbit_quorum_max_memory_bytes }}
 
 [oslo_messaging_notifications]
-driver = {{ (octavia_ceilometer_enabled | bool) | ternary('messagingv2', 'noop') }}
+driver = {{ (octavia_oslomsg_notify_configure | bool) | ternary('messagingv2', 'noop') }}
 transport_url = {{ octavia_oslomsg_notify_transport }}://{% for host in octavia_oslomsg_notify_servers.split(',') %}{{ octavia_oslomsg_notify_userid }}:{{ octavia_oslomsg_notify_password }}@{{ host }}:{{ octavia_oslomsg_notify_port }}{% if not loop.last %},{% else %}/{{ _octavia_oslomsg_notify_vhost_conf }}{% if octavia_oslomsg_notify_use_ssl | bool %}?ssl=1&ssl_version={{ octavia_oslomsg_notify_ssl_version }}&ssl_ca_file={{ octavia_oslomsg_notify_ssl_ca_file }}{% else %}?ssl=0{% endif %}{% endif %}{% endfor %}
 
 [database]
@@ -191,3 +198,22 @@ endpoint_type = {{ octavia_clients_endpoint }}
 [neutron]
 region_name = {{ keystone_service_region }}
 endpoint_type = {{ octavia_clients_endpoint }}
+
+{% if octavia_enabled_provider_agents | length > 0 %}
+[driver_agent]
+enabled_provider_agents = "{{ octavia_enabled_provider_agents | join(',') }}
+{% endif %}
+
+{% if octavia_ovn_enabled %}
+[ovn]
+ovn_nb_connection = {{ octavia_ovn_nb_connection }}
+ovn_sb_connection = {{ octavia_ovn_sb_connection }}
+{%   if octavia_ovn_ssl %}
+ovn_sb_ca_cert={{ ["/etc/octavia/certs", octavia_ovn_ssl_ca_cert] | join('/') }}
+ovn_sb_certificate={{ ["/etc/octavia/certs", octavia_ovn_ssl_cert] | join('/') }}
+ovn_sb_private_key={{ ["/etc/octavia/certs", octavia_ovn_ssl_key] | join('/') }}
+ovn_nb_ca_cert={{ ["/etc/octavia/certs", octavia_ovn_ssl_ca_cert] | join('/') }}
+ovn_nb_certificate={{ ["/etc/octavia/certs", octavia_ovn_ssl_cert] | join('/') }}
+ovn_nb_private_key={{ ["/etc/octavia/certs", octavia_ovn_ssl_key] | join('/') }}
+{%   endif %}
+{% endif %}
