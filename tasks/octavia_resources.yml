@@ -46,7 +46,7 @@
       networks:
         - name: "{{ octavia_neutron_management_network_name }}"
           network_type: "{{ octavia_provider_network_type }}"
-          physical_network: "{{ octavia_provider_network_name }}"
+          physical_network: "{{ octavia_provider_phys_network_name }}"
           segmentation_id: "{{ octavia_provider_segmentation_id | default(omit) }}"
           mtu: "{{ octavia_provider_network_mtu | default('1500') }}"
           project: "{{ octavia_service_project_name }}"
