@@ -15,7 +15,7 @@
 
 - name: Create image download directory
   delegate_to: "{{ octavia_service_setup_host }}"
-  file:
+  ansible.builtin.file:
     path: "{{ octavia_amp_image_path }}"
     state: directory
     mode: "0750"
@@ -29,11 +29,14 @@
   vars:
     openstack_resources_setup_host: "{{ octavia_service_setup_host }}"
     openstack_resources_python_interpreter: "{{ octavia_service_setup_host_python_interpreter }}"
+    openstack_resources_deploy_host: "{{ octavia_resources_deploy_host }}"
+    openstack_resources_deploy_python_interpreter: "{{ octavia_resources_deploy_python_interpreter }}"
     openstack_resources_image: "{{ (octavia_download_artefact | bool) | ternary({'images': octavia_amp_image_resource}, {}) }}"
     openstack_resources_identity:
       quotas:
         - name: "{{ octavia_service_project_name }}"
           cores: "{{ octavia_num_cores }}"
+          gigabytes: "{{ octavia_cinder_enabled | ternary(octavia_gigabytes, omit) }}"
           instances: "{{ octavia_num_instances }}"
           ram: "{{ octavia_ram }}"
           server_groups: "{{ octavia_num_server_groups }}"
@@ -41,6 +44,7 @@
           security_group: "{{ octavia_num_secgroups }}"
           security_group_rule: "{{ octavia_num_security_group_rules }}"
           port: "{{ octavia_num_ports }}"
+          volumes: "{{ octavia_cinder_enabled | ternary(octavia_num_volumes, omit) }}"
     # Network Resources
     _octavia_networks:
       networks:
@@ -97,6 +101,7 @@
             {% if octavia_management_net_dhcp %}
             {%   set _ = rules.append(_octavia_security_rule_dhcp) %}
             {% endif %}
+            {% set _ = rules.extend(octavia_security_group_additional_rules) %}
             {{ rules }}
     openstack_resources_network: |-
       {% set network_resources = _octavia_security_groups %}
@@ -115,15 +120,13 @@
           extra_specs: "{{ octavia_amp_extra_specs | default({}) }}"
     _octavia_keypairs:
       keypairs:
-        # NOTE(noonedeadpunk): We define old/short keypair algorythms for backwards compatibiltiy with
-        #                      previous keypair generation which was handled by Nova:
-        #                      https://opendev.org/openstack/nova/src/commit/7e8e0dd1ab2e46c6f95746b47189e81b5a228c69/nova/crypto.py#L97
         - name: "{{ octavia_ssh_key_name }}"
-          path: "{{ octavia_ssh_key_dir | default(lookup('env', 'HOME') ~ '/.ssh') }}/{{ octavia_ssh_key_name }}"
+          path: "{{ octavia_ssh_key_dir }}/{{ octavia_ssh_key_name }}"
           state: "{{ (octavia_ssh_enabled | bool) | ternary('present', 'absent') }}"
-          private_key_format: ssh
-          size: 2048
-          comment: Generated-by-Nova
+          private_key_format: "{{ octavia_ssh_key_format }}"
+          size: "{{ octavia_ssh_key_size }}"
+          comment: "{{ octavia_ssh_key_comment }}"
+          type: "{{ octavia_ssh_key_type }}"
           auth:
             auth_url: "{{ keystone_service_adminurl }}"
             username: "{{ octavia_service_user_name }}"
@@ -133,7 +136,10 @@
             project_domain_name: "{{ octavia_service_project_domain_id }}"
 
     openstack_resources_compute: |-
-      {% set compute_resources = _octavia_keypairs %}
+      {% set compute_resources = {} %}
+      {% if octavia_ssh_key_manage %}
+      {%   set _ = compute_resources.update(_octavia_keypairs) %}
+      {% endif %}
       {% if octavia_nova_flavor_uuid is not defined %}
       {%   set _ = compute_resources.update(_octavia_flavors) %}
       {% endif %}

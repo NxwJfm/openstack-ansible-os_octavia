@@ -2,7 +2,6 @@
 debug = {{ debug }}
 use_journal = True
 executor_thread_pool_size = {{ octavia_rpc_thread_pool_size }}
-rpc_conn_pool_size = {{ octavia_rpc_conn_pool_size }}
 transport_url = {{ octavia_oslomsg_rpc_transport }}://{% for host in octavia_oslomsg_rpc_servers.split(',') %}{{ octavia_oslomsg_rpc_userid }}:{{ octavia_oslomsg_rpc_password }}@{{ host }}:{{ octavia_oslomsg_rpc_port }}{% if not loop.last %},{% else %}/{{ _octavia_oslomsg_rpc_vhost_conf }}{% if octavia_oslomsg_rpc_use_ssl | bool %}?ssl=1&ssl_version={{ octavia_oslomsg_rpc_ssl_version }}&ssl_ca_file={{ octavia_oslomsg_rpc_ssl_ca_file }}{% else %}?ssl=0{% endif %}{% endif %}{% endfor %}
 
 [api_settings]
@@ -23,6 +22,7 @@ topic = octavia_prov
 
 [oslo_messaging_rabbit]
 ssl = {{ octavia_oslomsg_rpc_use_ssl }}
+rpc_conn_pool_size = {{ octavia_rpc_conn_pool_size }}
 rabbit_quorum_queue = {{ octavia_oslomsg_rabbit_quorum_queues }}
 rabbit_transient_quorum_queue = {{ octavia_oslomsg_rabbit_transient_quorum_queues }}
 rabbit_qos_prefetch_count = {{ octavia_oslomsg_rabbit_qos_prefetch_count }}
@@ -159,7 +159,7 @@ password = {{ octavia_service_password }}
 region_name = {{ keystone_service_region }}
 auth_type = password
 memcached_servers = {{ octavia_memcached_servers }}
-endpoint_type = {{ octavia_clients_endpoint }}
+valid_interfaces = {{ octavia_clients_endpoint }}
 token_cache_time = 300
 
 # if your memcached server is shared, use these settings to avoid cache poisoning
@@ -180,7 +180,7 @@ enable_anti_affinity = {{ octavia_enable_anti_affinity }}
 
 {% if octavia_cinder_enabled %}
 [cinder]
-service_name = {{ cinder_service_v3_name | default('cinderv3') }}
+service_name = {{ cinder_service_name | default('cinder') }}
 region_name = {{ keystone_service_region }}
 endpoint_type = {{ octavia_clients_endpoint }}
 availability_zone = {{ cinder_default_availability_zone }}
@@ -197,11 +197,12 @@ endpoint_type = {{ octavia_clients_endpoint }}
 
 [neutron]
 region_name = {{ keystone_service_region }}
-endpoint_type = {{ octavia_clients_endpoint }}
+valid_interfaces = {{ octavia_clients_endpoint }}
 
-{% if octavia_enabled_provider_agents | length > 0 %}
+{% set _enabled_provider_agents = octavia_enabled_provider_agents | select() %}
+{% if _enabled_provider_agents | length > 0 %}
 [driver_agent]
-enabled_provider_agents = "{{ octavia_enabled_provider_agents | join(',') }}
+enabled_provider_agents = {{ _enabled_provider_agents | join(',') }}
 {% endif %}
 
 {% if octavia_ovn_enabled %}
