@@ -62,7 +62,7 @@ octavia_pip_install_args: "{{ pip_install_options | default('') }}"
 octavia_venv_tag: "{{ venv_tag | default('untagged') }}"
 octavia_bin: "{{ _octavia_bin }}"
 
-octavia_clients_endpoint: internalURL
+octavia_clients_endpoint: internal
 
 octavia_auth_strategy: keystone
 
@@ -339,9 +339,22 @@ octavia_amp_image_resource:
 octavia_security_group_name: octavia_sec_grp
 # Restrict access to only authorized hosts
 octavia_security_group_rule_cidr: "{{ octavia_management_net_subnet_cidr }}"
+
+octavia_resources_deploy_host: localhost
+octavia_resources_deploy_python_interpreter: "{{ ansible_playbook_python }}"
 # ssh enabled - switch to True if you need ssh access to the amphora
 octavia_ssh_enabled: False
+octavia_ssh_key_manage: True
 octavia_ssh_key_name: octavia_key
+octavia_ssh_key_dir: "{{ lookup('env', 'HOME') ~ '/.ssh' }}"
+# SSH Key variables below are set to "old" values for backwards compatability
+# of how Nova used to generate keypairs.
+octavia_ssh_key_comment: Generated-by-Nova
+# Options: ssh, pkcs1 and pkcs8
+octavia_ssh_key_format: ssh
+# Options: rsa, dsa, rsa1, ecdsa, ed25519
+octavia_ssh_key_type: rsa
+octavia_ssh_key_size: 2048
 # port the agent listens on
 octavia_agent_port: "9443"
 octavia_health_manager_port: 5555
@@ -488,8 +501,11 @@ octavia_uwsgi_tls:
 # Set up the drivers
 # Provider agents are optional and not required for a successful Octavia provider driver
 # Possible options: amphora_agent, noop_agent, ovn
-octavia_enabled_provider_agents: []
+octavia_enabled_provider_agents:
+  - "{{ (octavia_ovn_enabled | bool) | ternary('ovn', None) }}"
+
 octavia_enabled_provider_drivers:
+  - "amphora:'The Octavia Amphora driver.'"
   - "amphorav2:'The Octavia Amphora v2 driver.'"
   - "{{ (octavia_ovn_enabled | bool) | ternary(\"ovn:'The Octavia OVN provider driver.'\", False) }}"
 octavia_default_provider_driver: "amphorav2"
