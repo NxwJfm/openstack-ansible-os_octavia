@@ -371,6 +371,11 @@ octavia_sync_provisioning_status: false
 # ant affinity features in Nova).
 octavia_enable_anti_affinity: true
 
+# this controls the type of anti affinity policy applied if it's enabled.
+# Default is anti-affinity, but soft-anti-affinity can be used but is not
+# recommended
+octavia_anti_affinity_policy: anti-affinity
+
 # Some installations put hardware more suited for load balancing in special
 # availability zones. This allows to target a specific availability zone
 # for amphora creation
